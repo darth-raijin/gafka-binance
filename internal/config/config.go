@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/darth-raijin/gafka-binance/internal/database"
+	"github.com/darth-raijin/gafka-binance/internal/integrations/binance"
 	"github.com/darth-raijin/gafka-binance/internal/kafka"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -11,6 +12,7 @@ import (
 type Configuration struct {
 	Database database.PostgresConfig `yaml:"database"`
 	Kafka    kafka.KafkaConfig       `yaml:"kafka"`
+	Binancee binance.BinanceConfig   `yaml:"binance"`
 }
 
 var AppConfig Configuration

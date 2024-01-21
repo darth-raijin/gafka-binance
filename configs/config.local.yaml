@@ -23,3 +23,4 @@ kafka:
   max_poll_records: 500        # Max number of records per poll for a consumer
   session_timeout_ms: 10000    # Consumer session timeout
   request_timeout_ms: 30000    # Timeout for client requests to Kafka brokers
+Random:

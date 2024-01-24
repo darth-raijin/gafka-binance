@@ -5,15 +5,15 @@ services:
     build: .
     container_name: gafka
     depends_on:
-      - db
+      - gafka-db
       - kafka
     restart: unless-stopped
     networks:
       - scraper-net
 
-  db:
+  gafka-db:
     image: postgres:latest
-    container_name: db
+    container_name: gafka-db
     environment:
       POSTGRES_USER: gafka
       POSTGRES_PASSWORD: 192205a9-58a7-4b7c-bd79-eab828e39eea

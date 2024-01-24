@@ -22,7 +22,7 @@ func initializeConsumers() []*kafka.KafkaConsumer {
 }
 
 func initializeProducers() []*kafka.KafkaProducer {
-	producers := []*kafka.KafkaProducer{}
+	var producers []*kafka.KafkaProducer
 	for _, topic := range config.AppConfig.Kafka.Topics {
 		switch topic {
 		case "Orderbook":
@@ -46,7 +46,7 @@ func wireModules(db *database.Database, logger *zap.Logger) {
 
 		// Start the producers.
 		for _, producer := range preparedProducers {
-			go producer.SendMessage([]byte("test"))
+			go producer.Start()
 		}
 	}
 

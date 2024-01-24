@@ -12,7 +12,7 @@ import (
 type Configuration struct {
 	Database database.PostgresConfig `yaml:"database"`
 	Kafka    kafka.KafkaConfig       `yaml:"kafka"`
-	Binancee binance.BinanceConfig   `yaml:"binance"`
+	Binance  binance.BinanceConfig   `yaml:"binance"`
 }
 
 var AppConfig Configuration

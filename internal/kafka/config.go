@@ -1,6 +1,7 @@
 package kafka
 
 type KafkaConfig struct {
+	Enable           bool           `yaml:"enable"`
 	Brokers          []string       `yaml:"brokers"`
 	Topics           []string       `yaml:"topics"`
 	ConsumerSettings ConsumerConfig `yaml:"consumer"`

@@ -3,9 +3,9 @@ package main
 import (
 	"github.com/darth-raijin/gafka-binance/internal/config"
 	"github.com/darth-raijin/gafka-binance/internal/database"
-	"github.com/darth-raijin/gafka-binance/internal/kafka"
 	"github.com/darth-raijin/gafka-binance/internal/migrations"
 	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -24,38 +24,17 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	err = migrations.Migrate(db.Connection)
+	zap, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+		return
+	}
+
+	err = migrations.Migrate(db.Connection, zap)
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 		return
 	}
 
-	preparedConsumers := initializeConsumers()
-
-}
-
-func initializeConsumers() []*kafka.KafkaConsumer {
-	consumers := []*kafka.KafkaConsumer{}
-	for _, topic := range config.AppConfig.Kafka.Topics {
-		switch topic {
-		case "Orderbook":
-			consumers = append(consumers, kafka.NewConsumer(config.AppConfig.Kafka, kafka.Orderbook))
-		case "Trade":
-			consumers = append(consumers, kafka.NewConsumer(config.AppConfig.Kafka, kafka.Trade))
-		}
-	}
-	return consumers
-}
-
-func initializeProducers() []*kafka.KafkaProducer {
-	producers := []*kafka.KafkaProducer{}
-	for _, topic := range config.AppConfig.Kafka.Topics {
-		switch topic {
-		case "Orderbook":
-			producers = append(producers, kafka.NewProducer(config.AppConfig.Kafka, kafka.Orderbook))
-		case "Trade":
-			producers = append(producers, kafka.NewProducer(config.AppConfig.Kafka, kafka.Trade))
-		}
-	}
-	return producers
+	wireModules(db, zap)
 }

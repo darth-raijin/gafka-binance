@@ -1,13 +1,16 @@
 package kafka
 
 import (
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"log"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/darth-raijin/gafka-binance/internal/integrations/binance"
 )
 
 type KafkaProducer struct {
-	producer *kafka.Producer
-	topic    Topic
+	producer      *kafka.Producer
+	topic         Topic
+	binanceClient *binance.BinanceClient
 }
 
 // NewProducer creates a new Kafka producer

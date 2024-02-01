@@ -12,7 +12,10 @@ require (
 
 require (
 	github.com/confluentinc/confluent-kafka-go/v2 v2.3.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/micvbang/go-helpy v0.1.11 // indirect
+	golang.org/x/net v0.19.0 // indirect
 )
 
 require (

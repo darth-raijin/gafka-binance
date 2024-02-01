@@ -2,8 +2,13 @@ package binance
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/gorilla/websocket"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 
 	"github.com/darth-raijin/gafka-binance/internal/database"
 	"go.uber.org/zap"
@@ -14,7 +19,7 @@ type BinanceInterface interface {
 	Ping() error
 
 	GetExchangeInfo() (GetExchangeInfoResponse, error)
-	GetAgregateTradeStreams(symbol string) (GetAgregateTradeStreamsResponse, error)
+	GetAggregateTradeStreams(symbol string, tradesChan chan<- GetAgregateTradeStreamsResponse) error
 }
 
 type BinanceClient struct {
@@ -116,30 +121,42 @@ type GetExchangeInfoResponseSymbol struct {
 	AllowedSelfTradePreventionModes []string `json:"allowedSelfTradePreventionModes"`
 }
 
-func (b *BinanceClient) GetAgregateTradeStreams(symbol string) (GetAgregateTradeStreamsResponse, error) {
-	res, err := http.Get(b.Basepath + "/api/v3/aggTrades")
+func (b *BinanceClient) GetAggregateTradeStreams(symbol string, tradesChan chan<- GetAgregateTradeStreamsResponse) error {
+	u := url.URL{Scheme: "wss", Host: "fstream.binance.com", Path: fmt.Sprintf("/ws/%s@aggTrade", symbol)}
+	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		return GetAgregateTradeStreamsResponse{}, err
+		return err
 	}
 
-	if res.StatusCode != 200 {
-		b.log.Warn("Binance API returned non-200 status code", zap.Int("status_code", res.StatusCode))
-	}
+	go func() {
+		for {
+			_, message, err := c.ReadMessage()
+			if err != nil {
+				close(tradesChan) // Signal the receiver that the stream is closed
+				return
+			}
 
-	defer res.Body.Close()
+			var trade GetAgregateTradeStreamsResponse
+			if err := json.Unmarshal(message, &trade); err != nil {
+				// Log error or handle it according to your error policy
+				continue
+			}
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return GetAgregateTradeStreamsResponse{}, err
-	}
+			price, err := strconv.ParseFloat(trade.Price, 64)
+			if err != nil {
+				continue
+			}
+			quantity, err := strconv.ParseFloat(trade.Quantity, 64)
+			if err != nil {
+				continue
+			}
 
-	var response GetAgregateTradeStreamsResponse
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return GetAgregateTradeStreamsResponse{}, err
-	}
+			b.log.Info("Received trade", zap.String("symbol", strings.ToUpper(symbol)), zap.Float64("price", price), zap.Float64("quantity", quantity))
+			tradesChan <- trade // Send the trade to the channel
+		}
+	}()
 
-	return response, nil
+	return nil
 }
 
 type GetAgregateTradeStreamsResponse struct {

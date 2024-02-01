@@ -2,15 +2,10 @@ package kafka
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/micvbang/go-helpy/booly"
-	"github.com/micvbang/go-helpy/inty"
-	"go.uber.org/zap"
-	"log"
-	"time"
-
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/darth-raijin/gafka-binance/internal/integrations/binance"
+	"go.uber.org/zap"
+	"log"
 )
 
 type KafkaProducer struct {
@@ -58,7 +53,6 @@ func (kp *KafkaProducer) SendMessage(message []byte) error {
 	e := <-deliveryChan
 	m := e.(*kafka.Message)
 
-	fmt.Println("RECEIVED MESSAGE", m.TopicPartition)
 	if m.TopicPartition.Error != nil {
 		return m.TopicPartition.Error
 	}
@@ -68,37 +62,28 @@ func (kp *KafkaProducer) SendMessage(message []byte) error {
 }
 
 func (kp *KafkaProducer) Start() {
-	ticker := time.NewTicker(time.Second * 1) // Adjust the interval as needed
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			mockData := binance.GetAgregateTradeStreamsResponse{
-				EventType:     "Mock",
-				EventTim:      int64(inty.Random() * inty.Random()),
-				Symbol:        "BTC",
-				TradeID:       inty.Random(),
-				Price:         "0.051",
-				Quantity:      "1200",
-				BuyerOrderID:  inty.Random(),
-				SellerOrderID: inty.Random(),
-				TradeTime:     int64(inty.Random()),
-				MarketBuyer:   booly.Random(),
-			}
-
-			// Serialize and send the data as a Kafka message
-			message, err := json.Marshal(mockData)
-			if err != nil {
-				kp.logger.Error("Failed to serialize data", zap.Error(err))
-				continue
-			}
-
-			if err := kp.SendMessage(message); err != nil {
-				kp.logger.Error("Failed to send message", zap.Error(err))
-			}
-			// You can add more cases here, like a quit signal to stop the producer
+	// Create a channel for receiving trade data
+	tradesChan := make(chan binance.GetAgregateTradeStreamsResponse)
+	// Start receiving trade streams in a separate goroutine
+	go func() {
+		err := kp.binanceClient.GetAggregateTradeStreams("ethusdc", tradesChan)
+		if err != nil {
+			kp.logger.Error("Failed to start aggregate trade streams", zap.Error(err))
 		}
+	}()
+
+	for trade := range tradesChan {
+		message, err := json.Marshal(trade)
+		if err != nil {
+			kp.logger.Error("Failed to serialize trade data", zap.Error(err))
+			continue
+		}
+
+		if err := kp.SendMessage(message); err != nil {
+			kp.logger.Error("Failed to send message", zap.Error(err))
+		}
+
+		// Optionally, implement a mechanism to handle clean shutdown, e.g., listening for a quit signal
 	}
 }
 

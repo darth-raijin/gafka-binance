@@ -8,14 +8,14 @@ import (
 	"go.uber.org/zap"
 )
 
-func initializeConsumers(logger *zap.Logger) []*kafka.KafkaConsumer {
+func initializeConsumers(logger *zap.Logger, db *database.Database) []*kafka.KafkaConsumer {
 	consumers := []*kafka.KafkaConsumer{}
 	for _, topic := range config.AppConfig.Kafka.Topics {
 		switch topic {
-		case "Orderbook":
-			consumers = append(consumers, kafka.NewConsumer(config.AppConfig.Kafka, kafka.Orderbook, logger))
-		case "Trade":
-			consumers = append(consumers, kafka.NewConsumer(config.AppConfig.Kafka, kafka.Trade, logger))
+		case kafka.Orderbook.String():
+			consumers = append(consumers, kafka.NewConsumer(config.AppConfig.Kafka, kafka.Orderbook, logger, db))
+		case kafka.Trade.String():
+			consumers = append(consumers, kafka.NewConsumer(config.AppConfig.Kafka, kafka.Trade, logger, db))
 		}
 	}
 	return consumers
@@ -38,11 +38,13 @@ func wireModules(db *database.Database, logger *zap.Logger) {
 	binanceClient := binance.NewBinanceClient(db, config.AppConfig.Binance.Basepaths[0], logger)
 
 	if config.AppConfig.Kafka.Enable {
-		preparedProducers := initializeProducers(logger, binanceClient)
-
 		// Start the producers.
-		for _, producer := range preparedProducers {
+		for _, producer := range initializeProducers(logger, binanceClient) {
 			go producer.Start()
+		}
+
+		for _, consumer := range initializeConsumers(logger, db) {
+			go consumer.Start()
 		}
 	}
 

@@ -8,49 +8,43 @@ import (
 	"go.uber.org/zap"
 )
 
-func initializeConsumers() []*kafka.KafkaConsumer {
+func initializeConsumers(logger *zap.Logger) []*kafka.KafkaConsumer {
 	consumers := []*kafka.KafkaConsumer{}
 	for _, topic := range config.AppConfig.Kafka.Topics {
 		switch topic {
 		case "Orderbook":
-			consumers = append(consumers, kafka.NewConsumer(config.AppConfig.Kafka, kafka.Orderbook))
+			consumers = append(consumers, kafka.NewConsumer(config.AppConfig.Kafka, kafka.Orderbook, logger))
 		case "Trade":
-			consumers = append(consumers, kafka.NewConsumer(config.AppConfig.Kafka, kafka.Trade))
+			consumers = append(consumers, kafka.NewConsumer(config.AppConfig.Kafka, kafka.Trade, logger))
 		}
 	}
 	return consumers
 }
 
-func initializeProducers() []*kafka.KafkaProducer {
+func initializeProducers(logger *zap.Logger, binanceClient binance.BinanceInterface) []*kafka.KafkaProducer {
 	var producers []*kafka.KafkaProducer
 	for _, topic := range config.AppConfig.Kafka.Topics {
 		switch topic {
 		case "Orderbook":
-			producers = append(producers, kafka.NewProducer(config.AppConfig.Kafka, kafka.Orderbook))
+			producers = append(producers, kafka.NewProducer(config.AppConfig.Kafka, kafka.Orderbook, logger, binanceClient))
 		case "Trade":
-			producers = append(producers, kafka.NewProducer(config.AppConfig.Kafka, kafka.Trade))
+			producers = append(producers, kafka.NewProducer(config.AppConfig.Kafka, kafka.Trade, logger, binanceClient))
 		}
 	}
 	return producers
 }
 
 func wireModules(db *database.Database, logger *zap.Logger) {
-	if config.AppConfig.Kafka.Enable {
-		preparedConsumers := initializeConsumers()
-		preparedProducers := initializeProducers()
+	binanceClient := binance.NewBinanceClient(db, config.AppConfig.Binance.Basepaths[0], logger)
 
-		// Start the consumers.
-		for _, consumer := range preparedConsumers {
-			go consumer.Start(func([]byte) {})
-		}
+	if config.AppConfig.Kafka.Enable {
+		preparedProducers := initializeProducers(logger, binanceClient)
 
 		// Start the producers.
 		for _, producer := range preparedProducers {
 			go producer.Start()
 		}
 	}
-
-	binanceClient := binance.NewBinanceClient(db, config.AppConfig.Binance.Basepaths[0], logger)
 
 	binanceClient.Ping()
 

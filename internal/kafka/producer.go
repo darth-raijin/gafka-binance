@@ -2,6 +2,9 @@ package kafka
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/micvbang/go-helpy/booly"
+	"github.com/micvbang/go-helpy/inty"
 	"go.uber.org/zap"
 	"log"
 	"time"
@@ -13,23 +16,26 @@ import (
 type KafkaProducer struct {
 	producer      *kafka.Producer
 	topic         Topic
-	binanceClient *binance.BinanceClient
+	binanceClient binance.BinanceInterface
 	logger        *zap.Logger
 }
 
 // NewProducer creates a new Kafka producer
-func NewProducer(kafkaCfg KafkaConfig, topic Topic, logger *zap.Logger) *KafkaProducer {
+func NewProducer(kafkaCfg KafkaConfig, topic Topic, logger *zap.Logger, binanceClient binance.BinanceInterface) *KafkaProducer {
 	producer, err := kafka.NewProducer(&kafka.ConfigMap{
 		"bootstrap.servers": kafkaCfg.Brokers[0],
+		"client.id":         "gafka-binance",
+		"acks":              "all",
 	})
 	if err != nil {
 		log.Fatalf("Failed to create producer: %s\n", err)
 	}
 
 	return &KafkaProducer{
-		producer: producer,
-		topic:    topic,
-		logger:   logger,
+		producer:      producer,
+		topic:         topic,
+		binanceClient: binanceClient,
+		logger:        logger,
 	}
 }
 
@@ -37,8 +43,10 @@ func NewProducer(kafkaCfg KafkaConfig, topic Topic, logger *zap.Logger) *KafkaPr
 func (kp *KafkaProducer) SendMessage(message []byte) error {
 	deliveryChan := make(chan kafka.Event)
 
+	topic := kp.topic.String()
+
 	err := kp.producer.Produce(&kafka.Message{
-		TopicPartition: kafka.TopicPartition{Topic: (*string)(&kp.topic), Partition: kafka.PartitionAny},
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
 		Value:          message,
 	}, deliveryChan)
 
@@ -50,6 +58,7 @@ func (kp *KafkaProducer) SendMessage(message []byte) error {
 	e := <-deliveryChan
 	m := e.(*kafka.Message)
 
+	fmt.Println("RECEIVED MESSAGE", m.TopicPartition)
 	if m.TopicPartition.Error != nil {
 		return m.TopicPartition.Error
 	}
@@ -59,21 +68,27 @@ func (kp *KafkaProducer) SendMessage(message []byte) error {
 }
 
 func (kp *KafkaProducer) Start() {
-	ticker := time.NewTicker(time.Second * 5) // Adjust the interval as needed
+	ticker := time.NewTicker(time.Second * 1) // Adjust the interval as needed
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			// Fetch data from a source (e.g., Binance)
-			data, err := kp.binanceClient.GetAgregateTradeStreams()
-			if err != nil {
-				kp.logger.Error("Failed to fetch data from source", zap.Error(err))
-				continue
+			mockData := binance.GetAgregateTradeStreamsResponse{
+				EventType:     "Mock",
+				EventTim:      int64(inty.Random() * inty.Random()),
+				Symbol:        "BTC",
+				TradeID:       inty.Random(),
+				Price:         "0.051",
+				Quantity:      "1200",
+				BuyerOrderID:  inty.Random(),
+				SellerOrderID: inty.Random(),
+				TradeTime:     int64(inty.Random()),
+				MarketBuyer:   booly.Random(),
 			}
 
 			// Serialize and send the data as a Kafka message
-			message, err := json.Marshal(data)
+			message, err := json.Marshal(mockData)
 			if err != nil {
 				kp.logger.Error("Failed to serialize data", zap.Error(err))
 				continue

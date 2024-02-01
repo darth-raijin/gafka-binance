@@ -116,7 +116,7 @@ type GetExchangeInfoResponseSymbol struct {
 	AllowedSelfTradePreventionModes []string `json:"allowedSelfTradePreventionModes"`
 }
 
-func (b *BinanceClient) GetAgregateTradeStreams() (GetAgregateTradeStreamsResponse, error) {
+func (b *BinanceClient) GetAgregateTradeStreams(symbol string) (GetAgregateTradeStreamsResponse, error) {
 	res, err := http.Get(b.Basepath + "/api/v3/aggTrades")
 	if err != nil {
 		return GetAgregateTradeStreamsResponse{}, err

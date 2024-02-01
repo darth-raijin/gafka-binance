@@ -11,6 +11,11 @@ require (
 )
 
 require (
+	github.com/confluentinc/confluent-kafka-go/v2 v2.3.0 // indirect
+	github.com/micvbang/go-helpy v0.1.11 // indirect
+)
+
+require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-gormigrate/gormigrate/v2 v2.1.1
 	github.com/hashicorp/hcl v1.0.0 // indirect

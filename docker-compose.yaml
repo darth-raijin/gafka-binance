@@ -1,15 +1,15 @@
 version: '3.8'
 
 services:
-  gafka:
-    build: .
-    container_name: gafka
-    depends_on:
-      - gafka-db
-      - kafka
-    restart: unless-stopped
-    networks:
-      - scraper-net
+#  gafka:
+#    build: .
+#    container_name: gafka
+#    depends_on:
+#      - gafka-db
+#      - kafka
+#    restart: unless-stopped
+#    networks:
+#      - scraper-net
 
   gafka-db:
     image: postgres:latest
@@ -31,31 +31,47 @@ services:
     ports:
       - "5432:5432"
 
-  zookeeper:
-    image: wurstmeister/zookeeper
-    container_name: zookeeper
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop
     ports:
-      - "2181:2181"
+      - "9000:9000"
+    environment:
+      KAFKA_BROKERCONNECT: "kafka:9092"
+      JVM_OPTS: "-Xms32M -Xmx64M"
+      SERVER_SERVLET_CONTEXTPATH: "/"
     networks:
       - scraper-net
     restart: unless-stopped
 
-  kafka:
-    image: wurstmeister/kafka
-    container_name: kafka
-    ports:
-      - "9092:9092"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
     environment:
-      KAFKA_ADVERTISED_HOST_NAME: kafka
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CREATE_TOPICS: "Orderbook:1:1,Trades:1:1"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      - zookeeper
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 2181:2181
     networks:
       - scraper-net
-    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CREATE_TOPICS: "Orderbook:1:1,Trades:1:1"
+    networks:
+      - scraper-net
 
 networks:
   scraper-net:

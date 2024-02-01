@@ -1,11 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"github.com/darth-raijin/gafka-binance/internal/config"
 	"github.com/darth-raijin/gafka-binance/internal/database"
 	"github.com/darth-raijin/gafka-binance/internal/migrations"
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/zap"
+	"runtime"
 )
 
 func main() {
@@ -20,6 +22,7 @@ func main() {
 		SSLMode:  appConfig.Database.SSLMode,
 	})
 
+	fmt.Println(appConfig.Kafka.Brokers)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -37,4 +40,6 @@ func main() {
 	}
 
 	wireModules(db, zap)
+
+	runtime.Goexit()
 }
